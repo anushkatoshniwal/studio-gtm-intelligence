@@ -826,3 +826,79 @@ Pilot conversion
   assert.equal(evidence.market, "Predictable pricing demand");
   assert.equal(result.context.keyUnknowns, "Revision volume is unknown");
 });
+
+const structuredAgencyRecommendation = {
+  opportunity: "Position Sarvam Studio as the integrated localization workflow for Indian-language media agencies by combining collaborative pronunciation/tone review, reusable language assets, and predictable campaign pricing to convert successful client pilots into annual contracts.",
+  target_segment: "Indian-language media agencies running multilingual client campaigns across advertising, branded content, and regional localization.",
+  hypothesis: "IF we offer a structured agency workflow plan FOR Indian-language media agencies THEN pilot-to-annual-contract conversion will increase BECAUSE collaborative review and pricing predictability are the strongest repeated needs.",
+  primary_metric: "Pilot-to-annual-contract conversion rate",
+  baseline_conversion: 0.02,
+  baseline_type: "Working assumption",
+  expected_conversion: 0.04,
+  expected_outcome_type: "Working assumption",
+  rationale: "Product evidence shows agency conversion follows successful client pilots, while customer and market evidence consistently identifies collaborative review and pricing predictability as the strongest opportunity. The 2% to 4% conversion lift is a working assumption for experiment modelling, not an observed baseline or forecast.",
+  pilot_size: 500,
+  evidence_confidence: 4,
+  execution_feasibility: 4,
+  revenue_per_customer: 100000,
+  acquisition_cost: 100000,
+  pilot_cost: 150000,
+  fixed_team_cost: 50000,
+  key_evidence: {
+    product: "Agency conversion follows a successful client pilot.",
+    customer: "Collaborative review and pricing predictability are repeated agency needs.",
+    market: "Shared pronunciation and tone review is an unmet workflow need.",
+  },
+  key_unknowns: [
+    "Agency market evidence is thin.",
+    "Typical revision volume and bundle economics are unknown.",
+  ],
+  key_risks: ["The end client's role in the purchasing decision is unclear."],
+};
+
+test("imports a structured Agent recommendation and all editable assumptions", () => {
+  const result = parseGtmOpportunity(JSON.stringify(structuredAgencyRecommendation));
+  assert.equal(result.ok, true, result.ok ? "" : result.error);
+  assert.equal(result.context.opportunity, structuredAgencyRecommendation.opportunity);
+  assert.equal(result.context.targetSegment, structuredAgencyRecommendation.target_segment);
+  assert.equal(result.context.primaryMetric, "Pilot-to-annual-contract conversion rate");
+  assert.match(result.context.supportingEvidence, /Product: Agency conversion/);
+  assert.match(result.context.keyUnknowns, /Agency market evidence is thin/);
+  assert.match(result.context.contradictingEvidence, /purchasing decision is unclear/);
+  assert.deepEqual(result.recommendation, {
+    baselineConversion: 0.02,
+    baselineType: "working",
+    expectedConversion: 0.04,
+    expectedOutcomeType: "working",
+    rationale: structuredAgencyRecommendation.rationale,
+    pilotSize: 500,
+    evidenceConfidence: 4,
+    executionFeasibility: 4,
+    revenuePerCustomer: 100000,
+    acquisitionCost: 100000,
+    pilotCost: 150000,
+    fixedTeamCost: 50000,
+  });
+});
+
+test("finds structured JSON after a concise Agent brief", () => {
+  const response = `### Primary opportunity\nAgency localization workflow\n\n### Evidence\nThree concise points.\n\n\`\`\`json\n${JSON.stringify(structuredAgencyRecommendation, null, 2)}\n\`\`\``;
+  const result = parseGtmOpportunity(response);
+  assert.equal(result.ok, true, result.ok ? "" : result.error);
+  assert.equal(result.recommendation?.pilotSize, 500);
+  assert.equal(result.recommendation?.baselineType, "working");
+});
+
+test("rejects incomplete or invalid structured recommendations precisely", () => {
+  const invalid = {
+    ...structuredAgencyRecommendation,
+    expected_conversion: 1.5,
+    evidence_confidence: 7,
+    pilot_size: 0,
+  };
+  const result = parseGtmOpportunity(JSON.stringify(invalid));
+  assert.equal(result.ok, false);
+  assert.match(result.error, /Expected conversion/);
+  assert.match(result.error, /Evidence confidence/);
+  assert.match(result.error, /Pilot size/);
+});

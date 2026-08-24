@@ -1,47 +1,81 @@
-# GTM Decision Brief Output Format
+# GTM Intelligence Agent → Experiment Lab Handoff
 
-Use this structure when handing an opportunity from the GTM Intelligence Agent to the Experiment Lab.
+After selecting the single strongest opportunity, return a concise decision brief followed by one structured experiment recommendation. The Agent recommends **what to test**; it must never return GO or NO-GO.
 
-Keep the brief concise. Use plain-text headings, omit citation IDs, and state each idea once. Put evidence detail only in the evidence sections.
+## Concise decision brief
 
-## Opportunity
+Include only:
 
-One sentence describing the commercial opportunity.
+1. Primary opportunity
+2. Target segment
+3. Three strongest evidence points: Product, Customer, and Market
+4. Three key risks or unknowns
+5. A testable `IF / FOR / THEN / BECAUSE` hypothesis
+6. One primary metric
 
-## Target segment
+Do not repeat claims, dump source documents, or include citation IDs in user-facing prose.
 
-One line naming the specific audience.
+## Structured experiment recommendation
 
-## Why now
+After the brief, output a valid JSON object in a fenced `json` block using this exact contract:
 
-One or two sentences describing the timing signal.
+```json
+{
+  "opportunity": "One concise opportunity statement",
+  "target_segment": "One specific target segment",
+  "hypothesis": "IF we ... FOR ... THEN ... BECAUSE ...",
+  "primary_metric": "One metric",
+  "baseline_conversion": 0.02,
+  "baseline_type": "Working assumption",
+  "expected_conversion": 0.04,
+  "expected_outcome_type": "Working assumption",
+  "rationale": "Two or three concise sentences explaining the evidence and clearly identifying modelling assumptions.",
+  "pilot_size": 500,
+  "evidence_confidence": 4,
+  "execution_feasibility": 4,
+  "revenue_per_customer": 100000,
+  "acquisition_cost": 100000,
+  "pilot_cost": 150000,
+  "fixed_team_cost": 50000,
+  "key_evidence": {
+    "product": "Strongest product evidence",
+    "customer": "Strongest customer evidence",
+    "market": "Strongest market evidence"
+  },
+  "key_unknowns": [
+    "Important unresolved question one",
+    "Important unresolved question two"
+  ],
+  "key_risks": [
+    "Important execution or evidence risk"
+  ]
+}
+```
 
-## Evidence highlights
+All numeric fields are required so Experiment Lab can prefill an editable model. Use observed values only when they exist in the Knowledge Base. Otherwise supply reasonable modelling values and set `baseline_type` and `expected_outcome_type` to `Working assumption`. Never describe a working assumption as historical performance, a forecast, or validated evidence.
 
-Two or three distinct evidence-backed observations. Do not repeat the opportunity or hypothesis.
+`baseline_conversion` and `expected_conversion` must be decimal rates between `0` and `1`. Confidence and feasibility must be integers from `1` to `5`. Costs and revenue must be non-negative. Pilot size must be a positive whole number.
 
-## Contradictions
+## Current media-agency opportunity
 
-Up to two observations that weaken or complicate the opportunity.
+Use these initial working assumptions for the current media-agency localization recommendation:
 
-## Unknowns
+- Baseline conversion: `0.02`
+- Expected conversion: `0.04`
+- Pilot size: `500`
+- Evidence confidence: `4`
+- Execution feasibility: `4`
+- Revenue per customer: `100000`
+- Acquisition cost: `100000`
+- Pilot cost: `150000`
+- Fixed team cost: `50000`
 
-Up to two important questions the experiment should resolve.
+Use this rationale:
 
-## Recommended motion
+> Product evidence shows agency conversion follows successful client pilots, while customer and market evidence consistently identifies collaborative review and pricing predictability as the strongest opportunity. The 2% to 4% conversion lift is a working assumption for experiment modelling, not an observed baseline or forecast.
 
-One sentence describing the proposed GTM motion.
+The operator must be able to edit every imported assumption before Experiment Lab evaluates the opportunity.
 
-## Hypothesis
+## Compatibility
 
-One sentence in this form: “If we [action], then [expected change] in [primary metric].”
-
-## Outcome
-
-One sentence describing the expected business outcome without inventing a conversion rate.
-
-## Primary metric
-
-One metric only.
-
-The Experiment Lab accepts these concise headings as well as the previous ten-section heading names.
+Experiment Lab still accepts the previous concise Markdown decision-brief formats. Markdown-only imports provide context but cannot prefill numerical assumptions; the structured JSON recommendation is the preferred handoff.

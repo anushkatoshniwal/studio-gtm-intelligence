@@ -15,8 +15,29 @@ export type OpportunityField = (typeof OPPORTUNITY_FIELDS)[number];
 
 export type OpportunityContext = Record<OpportunityField, string>;
 
+export type AssumptionType = "observed" | "working" | "unknown";
+
+export type ExperimentRecommendation = {
+  baselineConversion: number;
+  baselineType: AssumptionType;
+  expectedConversion: number;
+  expectedOutcomeType: AssumptionType;
+  rationale: string;
+  pilotSize: number;
+  evidenceConfidence: number;
+  executionFeasibility: number;
+  revenuePerCustomer: number;
+  acquisitionCost: number;
+  pilotCost: number;
+  fixedTeamCost: number;
+};
+
 export type OpportunityParseResult =
-  | { ok: true; context: OpportunityContext }
+  | {
+      ok: true;
+      context: OpportunityContext;
+      recommendation?: ExperimentRecommendation;
+    }
   | { ok: false; missing: string[]; error?: string };
 
 export type OpportunityParseFailure = Extract<
@@ -251,6 +272,160 @@ function cleanValue(lines: string[]) {
   return removeRepeatedClaims(removePresentationArtifacts(value));
 }
 
+type StructuredRecommendationPayload = Record<string, unknown>;
+
+function structuredText(value: unknown) {
+  if (typeof value === "string") return removePresentationArtifacts(value).trim();
+  if (Array.isArray(value)) {
+    return value
+      .filter((item): item is string => typeof item === "string")
+      .map((item) => removePresentationArtifacts(item).trim())
+      .filter(Boolean)
+      .join("\n");
+  }
+  return "";
+}
+
+function structuredNumber(value: unknown) {
+  if (typeof value === "number") return Number.isFinite(value) ? value : null;
+  if (typeof value === "string" && value.trim()) {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+  return null;
+}
+
+function assumptionType(value: unknown): AssumptionType | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.toLowerCase().replace(/[_-]+/g, " ").trim();
+  if (["observed", "observed baseline", "evidence backed", "evidence backed estimate"].includes(normalized)) {
+    return "observed";
+  }
+  if (["working", "working assumption", "assumption"].includes(normalized)) {
+    return "working";
+  }
+  if (["unknown", "not established"].includes(normalized)) return "unknown";
+  return null;
+}
+
+function parseStructuredRecommendation(
+  text: string,
+): OpportunityParseResult | null {
+  const trimmed = text.trim();
+  const fencedMatch = trimmed.match(/```json\s*([\s\S]*?)\s*```/i);
+  const looksStructured = Boolean(fencedMatch) || trimmed.startsWith("{") || /^```\s*\{/i.test(trimmed);
+  if (!looksStructured) return null;
+
+  const jsonText = (fencedMatch?.[1] ?? trimmed)
+    .replace(/^```\s*/i, "")
+    .replace(/\s*```$/, "")
+    .trim();
+
+  let payload: StructuredRecommendationPayload;
+  try {
+    const parsed = JSON.parse(jsonText) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+      throw new Error("not an object");
+    }
+    payload = parsed as StructuredRecommendationPayload;
+  } catch {
+    return {
+      ok: false,
+      missing: [],
+      error: "The structured experiment recommendation is not valid JSON.",
+    };
+  }
+
+  const requiredText: [string, string][] = [
+    ["opportunity", "Opportunity"],
+    ["target_segment", "Target segment"],
+    ["hypothesis", "Hypothesis"],
+    ["primary_metric", "Primary metric"],
+    ["rationale", "Rationale"],
+  ];
+  const missing = requiredText
+    .filter(([field]) => !structuredText(payload[field]))
+    .map(([, label]) => label);
+
+  const evidencePayload = payload.key_evidence;
+  const evidence = evidencePayload && typeof evidencePayload === "object" && !Array.isArray(evidencePayload)
+    ? evidencePayload as Record<string, unknown>
+    : {};
+  const productEvidence = structuredText(evidence.product ?? payload.product_evidence);
+  const customerEvidence = structuredText(evidence.customer ?? payload.customer_evidence);
+  const marketEvidence = structuredText(evidence.market ?? payload.market_evidence);
+  if (!productEvidence) missing.push("Product evidence");
+  if (!customerEvidence) missing.push("Customer evidence");
+  if (!marketEvidence) missing.push("Market evidence");
+
+  const numericFields: [string, string, (value: number) => boolean][] = [
+    ["baseline_conversion", "Baseline conversion", (value) => value >= 0 && value <= 1],
+    ["expected_conversion", "Expected conversion", (value) => value >= 0 && value <= 1],
+    ["pilot_size", "Pilot size", (value) => Number.isInteger(value) && value > 0],
+    ["evidence_confidence", "Evidence confidence", (value) => Number.isInteger(value) && value >= 1 && value <= 5],
+    ["execution_feasibility", "Execution feasibility", (value) => Number.isInteger(value) && value >= 1 && value <= 5],
+    ["revenue_per_customer", "Revenue per customer", (value) => value >= 0],
+    ["acquisition_cost", "Acquisition cost", (value) => value >= 0],
+    ["pilot_cost", "Pilot cost", (value) => value >= 0],
+    ["fixed_team_cost", "Fixed team cost", (value) => value >= 0],
+  ];
+  const numbers = Object.fromEntries(
+    numericFields.map(([field]) => [field, structuredNumber(payload[field])]),
+  ) as Record<string, number | null>;
+  for (const [field, label, isValid] of numericFields) {
+    const value = numbers[field];
+    if (value === null || !isValid(value)) missing.push(label);
+  }
+
+  const baselineType = assumptionType(payload.baseline_type);
+  const expectedOutcomeType = assumptionType(payload.expected_outcome_type);
+  if (!baselineType) missing.push("Baseline type");
+  if (!expectedOutcomeType) missing.push("Expected outcome type");
+
+  if (missing.length) {
+    return {
+      ok: false,
+      missing,
+      error: `The structured recommendation is missing or has invalid fields: ${missing.join(", ")}.`,
+    };
+  }
+
+  const keyUnknowns = structuredText(payload.key_unknowns);
+  const keyRisks = structuredText(payload.key_risks);
+  const context: OpportunityContext = {
+    opportunity: structuredText(payload.opportunity),
+    targetSegment: structuredText(payload.target_segment),
+    hypothesis: structuredText(payload.hypothesis),
+    primaryMetric: structuredText(payload.primary_metric),
+    supportingEvidence: [
+      `Product: ${productEvidence}`,
+      `Customer: ${customerEvidence}`,
+      `Market: ${marketEvidence}`,
+    ].join("\n"),
+    keyUnknowns,
+    contradictingEvidence: keyRisks,
+    whyNow: "",
+    recommendedGtmMotion: "",
+    expectedOutcome: "",
+  };
+  const recommendation: ExperimentRecommendation = {
+    baselineConversion: numbers.baseline_conversion!,
+    baselineType: baselineType!,
+    expectedConversion: numbers.expected_conversion!,
+    expectedOutcomeType: expectedOutcomeType!,
+    rationale: structuredText(payload.rationale),
+    pilotSize: numbers.pilot_size!,
+    evidenceConfidence: numbers.evidence_confidence!,
+    executionFeasibility: numbers.execution_feasibility!,
+    revenuePerCustomer: numbers.revenue_per_customer!,
+    acquisitionCost: numbers.acquisition_cost!,
+    pilotCost: numbers.pilot_cost!,
+    fixedTeamCost: numbers.fixed_team_cost!,
+  };
+
+  return { ok: true, context, recommendation };
+}
+
 export const MISSING_SOURCE_EVIDENCE = "Not separated in this brief.";
 
 export function extractSourceEvidence(value: string): SourceEvidence {
@@ -298,6 +473,9 @@ export function opportunityParseErrorMessage(result: OpportunityParseFailure) {
 }
 
 export function parseGtmOpportunity(text: string): OpportunityParseResult {
+  const structuredResult = parseStructuredRecommendation(text);
+  if (structuredResult) return structuredResult;
+
   const collected = Object.fromEntries(
     OPPORTUNITY_FIELDS.map((field) => [field, [] as string[]]),
   ) as Record<OpportunityField, string[]>;

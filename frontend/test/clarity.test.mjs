@@ -46,10 +46,10 @@ test("unreachable break-even conversion is labelled explicitly", () => {
   );
 });
 
-test("successful imports and context clearing reset the operator rationale", () => {
+test("Markdown imports and context clearing reset the operator rationale", () => {
   assert.match(
     pageSource,
-    /setContext\(parsed\.context\)[\s\S]*?setRationale\(""\)[\s\S]*?invalidateSimulation\(\)/,
+    /else \{[\s\S]*?setValues\(EMPTY_IMPORTED_VALUES\)[\s\S]*?setRationale\(""\)/,
   );
   assert.match(
     pageSource,
@@ -57,7 +57,7 @@ test("successful imports and context clearing reset the operator rationale", () 
   );
 });
 
-test("structured Agent imports do not fabricate operator assumptions", () => {
+test("legacy Markdown imports do not fabricate operator assumptions", () => {
   assert.match(pageSource, /const EMPTY_IMPORTED_VALUES:[\s\S]*?pilot_size: ""/);
   assert.match(pageSource, /current_conversion_rate: ""/);
   assert.match(pageSource, /expected_conversion_rate: ""/);
@@ -65,17 +65,43 @@ test("structured Agent imports do not fabricate operator assumptions", () => {
   assert.match(pageSource, /feasibility: ""/);
   assert.match(
     pageSource,
-    /setContext\(parsed\.context\)[\s\S]*?setValues\(EMPTY_IMPORTED_VALUES\)[\s\S]*?setBaselineType\("unknown"\)/,
+    /else \{[\s\S]*?setValues\(EMPTY_IMPORTED_VALUES\)[\s\S]*?setBaselineType\("unknown"\)/,
   );
   assert.match(pageSource, /Baseline not established — operator assumption required\./);
   assert.match(pageSource, /Expected outcome not established — operator assumption required\./);
   assert.match(pageSource, /Evidence confidence not set/);
 });
 
-test("evaluation waits for explicit operator assumptions", () => {
-  assert.match(pageSource, /REQUIRED_ASSUMPTION_FIELDS\.every/);
-  assert.match(pageSource, /!assumptionsComplete \|\| !rationale\.trim\(\)/);
+test("structured Agent recommendations prefill editable working assumptions", () => {
+  assert.match(pageSource, /if \(parsed\.recommendation\)/);
+  assert.match(pageSource, /pilot_size: String\(recommendation\.pilotSize\)/);
+  assert.match(pageSource, /current_conversion_rate: String\(recommendation\.baselineConversion\)/);
+  assert.match(pageSource, /expected_conversion_rate: String\(recommendation\.expectedConversion\)/);
+  assert.match(pageSource, /setRationale\(recommendation\.rationale\)/);
+  assert.match(pageSource, /setExpectedOutcomeType\(recommendation\.expectedOutcomeType\)/);
+  assert.match(pageSource, /Working assumptions imported from the Agent — operator editable\./);
+});
+
+test("evaluation reports exact missing or invalid fields", () => {
+  assert.match(pageSource, /function validateExperimentInputs/);
+  assert.match(pageSource, /Enter an expected conversion rate before evaluating\./);
+  assert.match(pageSource, /Enter a rationale for the expected outcome before evaluating\./);
+  assert.match(pageSource, /Enter a pilot size as a positive whole number\./);
+  assert.match(pageSource, /const validationError = validateExperimentInputs\(values, rationale\)/);
+  assert.match(pageSource, /<form className="workspace" onSubmit=\{handleSubmit\} noValidate>/);
   assert.match(pageSource, /Confidence and feasibility are operator judgments\./);
+});
+
+test("importing recommendations never evaluates automatically", () => {
+  assert.match(
+    pageSource,
+    /setHasStructuredRecommendation\(true\)[\s\S]*?setIsImported\(true\)[\s\S]*?invalidateSimulation\(\)/,
+  );
+  const loadSource = pageSource.slice(
+    pageSource.indexOf("function loadOpportunity"),
+    pageSource.indexOf("function clearOpportunity"),
+  );
+  assert.doesNotMatch(loadSource, /fetch\(|handleSubmit\(/);
 });
 
 test("the importer displays the parser's specific validation message", () => {

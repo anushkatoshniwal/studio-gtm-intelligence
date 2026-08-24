@@ -2024,6 +2024,21 @@ body {
   line-height: 1.45;
 }
 
+.assumption-provenance {
+  margin: -6px 0 14px;
+  color: #4f6857;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.financial-heading small {
+  display: block;
+  margin-top: 4px;
+  color: #5e7164;
+  font-size: 0.68rem;
+  font-weight: 650;
+}
+
 .source-blocks {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;

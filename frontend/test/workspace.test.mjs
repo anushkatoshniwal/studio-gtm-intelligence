@@ -10,6 +10,10 @@ const nextConfigSource = await readFile(
   new URL("../next.config.mjs", import.meta.url),
   "utf8",
 );
+const agentHandoffSource = await readFile(
+  new URL("../../knowledge/work-agent-decision-brief.md", import.meta.url),
+  "utf8",
+);
 
 test("renders the five GTM workspace stages in order", () => {
   const stages = [
@@ -68,6 +72,29 @@ test("keeps the existing simulation contract unchanged", () => {
   assert.match(pageSource, /current_conversion_rate:\s*Number\(values\.current_conversion_rate\)/);
   assert.match(pageSource, /expected_conversion_rate:\s*Number\(values\.expected_conversion_rate\)/);
   assert.doesNotMatch(pageSource, /baseline_type:\s*/);
+});
+
+test("documents the structured Agent recommendation without assigning the decision", () => {
+  for (const field of [
+    "baseline_conversion",
+    "baseline_type",
+    "expected_conversion",
+    "expected_outcome_type",
+    "pilot_size",
+    "evidence_confidence",
+    "execution_feasibility",
+    "revenue_per_customer",
+    "acquisition_cost",
+    "pilot_cost",
+    "fixed_team_cost",
+    "key_evidence",
+    "key_unknowns",
+    "key_risks",
+  ]) {
+    assert.match(agentHandoffSource, new RegExp(`"${field}"`));
+  }
+  assert.match(agentHandoffSource, /must never return GO or NO-GO/);
+  assert.match(agentHandoffSource, /working assumption for experiment modelling/);
 });
 
 test("uses REFINE as the user-facing label without changing the REVIEW API value", () => {

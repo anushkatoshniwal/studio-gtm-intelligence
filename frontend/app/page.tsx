@@ -2,6 +2,7 @@
 
 import { FormEvent, useState } from "react";
 import {
+  AssumptionType,
   OpportunityContext,
   opportunityParseErrorMessage,
   parseGtmOpportunity,
@@ -34,7 +35,7 @@ type SimulationResult = {
   risks: string[];
 };
 
-type BaselineType = "observed" | "working" | "unknown";
+type BaselineType = AssumptionType;
 
 const EXPERIMENT_CONTEXT: OpportunityContext = {
   opportunity:
@@ -83,18 +84,6 @@ const EMPTY_IMPORTED_VALUES: FormValues = {
   evidence_confidence: "",
   feasibility: "",
 };
-
-const REQUIRED_ASSUMPTION_FIELDS: (keyof FormValues)[] = [
-  "pilot_size",
-  "current_conversion_rate",
-  "expected_conversion_rate",
-  "revenue_per_customer",
-  "acquisition_cost",
-  "pilot_cost",
-  "fixed_team_cost",
-  "evidence_confidence",
-  "feasibility",
-];
 
 const EVIDENCE_OPTIONS = [
   "Very weak evidence",
@@ -161,6 +150,68 @@ function baselineContext(type: BaselineType) {
   return "The baseline is unknown. The numeric value remains an operator assumption used only for modelling.";
 }
 
+function expectedOutcomeContext(type: AssumptionType) {
+  if (type === "observed") {
+    return "The expected rate is supported by an existing benchmark or observed evidence.";
+  }
+  if (type === "working") {
+    return "The expected rate is an editable modelling assumption, not a system forecast.";
+  }
+  return "The expected outcome is not established and must be set by the operator.";
+}
+
+function validateExperimentInputs(values: FormValues, rationale: string) {
+  const required: [keyof FormValues, string][] = [
+    ["current_conversion_rate", "Enter a baseline conversion rate before evaluating."],
+    ["expected_conversion_rate", "Enter an expected conversion rate before evaluating."],
+    ["pilot_size", "Enter a pilot size before evaluating."],
+    ["evidence_confidence", "Select evidence confidence before evaluating."],
+    ["feasibility", "Select execution feasibility before evaluating."],
+    ["revenue_per_customer", "Enter revenue per customer before evaluating."],
+    ["acquisition_cost", "Enter acquisition cost before evaluating."],
+    ["pilot_cost", "Enter pilot cost before evaluating."],
+    ["fixed_team_cost", "Enter fixed team cost before evaluating."],
+  ];
+  for (const [field, message] of required) {
+    if (!values[field].trim()) return message;
+  }
+  if (!rationale.trim()) return "Enter a rationale for the expected outcome before evaluating.";
+
+  const baseline = Number(values.current_conversion_rate);
+  if (!Number.isFinite(baseline) || baseline < 0 || baseline > 1) {
+    return "Enter a baseline conversion rate between 0 and 1.";
+  }
+  const expected = Number(values.expected_conversion_rate);
+  if (!Number.isFinite(expected) || expected < 0 || expected > 1) {
+    return "Enter an expected conversion rate between 0 and 1.";
+  }
+  const pilotSize = Number(values.pilot_size);
+  if (!Number.isInteger(pilotSize) || pilotSize < 1) {
+    return "Enter a pilot size as a positive whole number.";
+  }
+  for (const [field, label] of [
+    ["evidence_confidence", "Evidence confidence"],
+    ["feasibility", "Execution feasibility"],
+  ] as [keyof FormValues, string][]) {
+    const rating = Number(values[field]);
+    if (!Number.isInteger(rating) || rating < 1 || rating > 5) {
+      return `${label} must be between 1 and 5.`;
+    }
+  }
+  for (const [field, label] of [
+    ["revenue_per_customer", "Revenue per customer"],
+    ["acquisition_cost", "Acquisition cost"],
+    ["pilot_cost", "Pilot cost"],
+    ["fixed_team_cost", "Fixed team cost"],
+    ["expansion_revenue_per_customer", "Expansion revenue per customer"],
+  ] as [keyof FormValues, string][]) {
+    if (!values[field].trim() && field === "expansion_revenue_per_customer") continue;
+    const amount = Number(values[field]);
+    if (!Number.isFinite(amount) || amount < 0) return `${label} cannot be negative.`;
+  }
+  return null;
+}
+
 function primaryRisk(result: SimulationResult, baselineType: BaselineType) {
   if (baselineType === "working") {
     return "The baseline conversion is a working assumption rather than observed historical data.";
@@ -209,11 +260,13 @@ export default function Home() {
   const [result, setResult] = useState<SimulationResult | null>(null);
   const [simulatedPilotSize, setSimulatedPilotSize] = useState<number | null>(null);
   const [baselineType, setBaselineType] = useState<BaselineType>("working");
+  const [expectedOutcomeType, setExpectedOutcomeType] = useState<AssumptionType>("working");
   const [simulatedBaselineType, setSimulatedBaselineType] = useState<BaselineType | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [context, setContext] = useState<OpportunityContext>(EXPERIMENT_CONTEXT);
   const [isImported, setIsImported] = useState(false);
+  const [hasStructuredRecommendation, setHasStructuredRecommendation] = useState(false);
   const [isImporterOpen, setIsImporterOpen] = useState(false);
   const [isEditingContext, setIsEditingContext] = useState(false);
   const [opportunityText, setOpportunityText] = useState("");
@@ -239,14 +292,36 @@ export default function Home() {
     }
 
     setContext(parsed.context);
-    setValues(EMPTY_IMPORTED_VALUES);
-    setBaselineType("unknown");
+    if (parsed.recommendation) {
+      const recommendation = parsed.recommendation;
+      setValues({
+        pilot_size: String(recommendation.pilotSize),
+        current_conversion_rate: String(recommendation.baselineConversion),
+        expected_conversion_rate: String(recommendation.expectedConversion),
+        revenue_per_customer: String(recommendation.revenuePerCustomer),
+        acquisition_cost: String(recommendation.acquisitionCost),
+        pilot_cost: String(recommendation.pilotCost),
+        fixed_team_cost: String(recommendation.fixedTeamCost),
+        expansion_revenue_per_customer: "",
+        evidence_confidence: String(recommendation.evidenceConfidence),
+        feasibility: String(recommendation.executionFeasibility),
+      });
+      setBaselineType(recommendation.baselineType);
+      setExpectedOutcomeType(recommendation.expectedOutcomeType);
+      setRationale(recommendation.rationale);
+      setHasStructuredRecommendation(true);
+    } else {
+      setValues(EMPTY_IMPORTED_VALUES);
+      setBaselineType("unknown");
+      setExpectedOutcomeType("unknown");
+      setRationale("");
+      setHasStructuredRecommendation(false);
+    }
     setIsImported(true);
     setIsImporterOpen(false);
     setIsEditingContext(false);
     setImportError(null);
     setOpportunityText("");
-    setRationale("");
     invalidateSimulation();
     window.setTimeout(() => {
       document.getElementById("experiment-title")?.scrollIntoView({
@@ -259,6 +334,7 @@ export default function Home() {
   function clearOpportunity() {
     setContext(EXPERIMENT_CONTEXT);
     setIsImported(false);
+    setHasStructuredRecommendation(false);
     setIsEditingContext(false);
     setImportError(null);
     setOpportunityText("");
@@ -268,13 +344,9 @@ export default function Home() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const assumptionsComplete = REQUIRED_ASSUMPTION_FIELDS.every(
-      (field) => values[field].trim() !== "",
-    );
-    if (!assumptionsComplete || !rationale.trim()) {
-      setError(
-        "Set the baseline, expected outcome, rationale, test scope, operator judgments, and financial assumptions before evaluating.",
-      );
+    const validationError = validateExperimentInputs(values, rationale);
+    if (validationError) {
+      setError(validationError);
       return;
     }
     setIsLoading(true);
@@ -375,17 +447,19 @@ export default function Home() {
         </button>
         {isImported && !isImporterOpen && (
           <p className="import-confirmation" role="status">
-            Opportunity imported from GTM Intelligence Agent
+            {hasStructuredRecommendation
+              ? "Opportunity and editable assumptions imported from GTM Intelligence Agent"
+              : "Opportunity imported from GTM Intelligence Agent"}
           </p>
         )}
         {isImporterOpen && (
           <div className="importer" id="opportunity-importer">
             <div className="importer-heading">
               <h3>Import GTM Intelligence Agent handoff</h3>
-              <p>Paste the complete structured handoff. The Lab will preserve its opportunity, evidence, and unknowns.</p>
+              <p>Paste the structured experiment recommendation JSON to prefill editable assumptions. Legacy Markdown briefs remain supported for context-only imports.</p>
             </div>
             <label htmlFor="gtm-opportunity-text">
-              <span>Paste GTM decision brief</span>
+              <span>Paste structured experiment recommendation</span>
             </label>
             <textarea
               id="gtm-opportunity-text"
@@ -395,7 +469,7 @@ export default function Home() {
                 setOpportunityText(event.target.value);
                 setImportError(null);
               }}
-              placeholder={"### Opportunity\nWhat the Agent recommends testing\n\n### Target segment\nWho the test is for\n\n### Hypothesis\nWhat change is expected\n\n### Primary metric\nOne metric\n\n### Product evidence\nObserved product evidence\n\n### Customer evidence\nObserved customer evidence\n\n### Market evidence\nObserved market evidence\n\n### Key unknowns\nWhat remains uncertain"}
+              placeholder={'{\n  "opportunity": "...",\n  "target_segment": "...",\n  "hypothesis": "...",\n  "primary_metric": "...",\n  "baseline_conversion": 0.02,\n  "baseline_type": "Working assumption",\n  "expected_conversion": 0.04,\n  "expected_outcome_type": "Working assumption",\n  "rationale": "...",\n  "pilot_size": 500,\n  "evidence_confidence": 4,\n  "execution_feasibility": 4,\n  "revenue_per_customer": 100000,\n  "acquisition_cost": 100000,\n  "pilot_cost": 150000,\n  "fixed_team_cost": 50000,\n  "key_evidence": { "product": "...", "customer": "...", "market": "..." },\n  "key_unknowns": ["..."],\n  "key_risks": ["..."]\n}'}
             />
             {importError && (
               <p className="import-error" role="alert">
@@ -477,6 +551,11 @@ export default function Home() {
               <strong>{context.primaryMetric || "Primary metric not specified"}</strong>
             </div>
           </div>
+          {hasStructuredRecommendation && (
+            <p className="assumption-provenance">
+              Working assumptions imported from the Agent — operator editable.
+            </p>
+          )}
 
           <div className="experiment-inputs">
             <div className="conversion-column baseline-column">
@@ -526,6 +605,13 @@ export default function Home() {
                   Expected outcome not established — operator assumption required.
                 </p>
               )}
+              <ExpectedOutcomeTypeSelector
+                value={expectedOutcomeType}
+                onChange={(value) => {
+                  setExpectedOutcomeType(value);
+                  invalidateSimulation();
+                }}
+              />
 
               <label className="rationale-field" htmlFor="experiment-rationale">
                 <span>Why do we believe this?</span>
@@ -596,6 +682,7 @@ export default function Home() {
           result={result}
           isLoading={isLoading}
           pilotSize={simulatedPilotSize}
+          hasStructuredRecommendation={hasStructuredRecommendation}
         />
 
         <section className="workspace-card decision-card" aria-labelledby="decision-title">
@@ -921,18 +1008,46 @@ function BaselineTypeSelector({ value, onChange }: { value: BaselineType; onChan
   );
 }
 
+function ExpectedOutcomeTypeSelector({
+  value,
+  onChange,
+}: {
+  value: AssumptionType;
+  onChange: (value: AssumptionType) => void;
+}) {
+  return (
+    <label className="baseline-type-field" htmlFor="expected_outcome_type">
+      <div>
+        <span>Expected outcome type</span>
+        <small>{expectedOutcomeContext(value)}</small>
+      </div>
+      <select
+        id="expected_outcome_type"
+        value={value}
+        onChange={(event) => onChange(event.target.value as AssumptionType)}
+      >
+        <option value="observed">Evidence-backed estimate</option>
+        <option value="working">Working assumption</option>
+        <option value="unknown">Unknown</option>
+      </select>
+    </label>
+  );
+}
+
 function EconomicsCard({
   values,
   updateValue,
   result,
   isLoading,
   pilotSize,
+  hasStructuredRecommendation,
 }: {
   values: FormValues;
   updateValue: (key: keyof FormValues, value: string) => void;
   result: SimulationResult | null;
   isLoading: boolean;
   pilotSize: number | null;
+  hasStructuredRecommendation: boolean;
 }) {
   return (
     <section className="workspace-card economics-card" aria-labelledby="economics-title">
@@ -973,7 +1088,11 @@ function EconomicsCard({
           <span className="disclosure-action">→</span>
         </summary>
         <div className="economics-details">
-          <FinancialAssumptions values={values} updateValue={updateValue} />
+          <FinancialAssumptions
+            values={values}
+            updateValue={updateValue}
+            hasStructuredRecommendation={hasStructuredRecommendation}
+          />
           {result && !isLoading && (
             <div className="break-even-grid">
               <ResultCard label="Break-even customers" value={formatNumber(result.break_even_incremental_customers)} />
@@ -1002,15 +1121,20 @@ function ImpactNode({ symbol, value, label, tone = "default" }: { symbol: string
 function FinancialAssumptions({
   values,
   updateValue,
+  hasStructuredRecommendation,
 }: {
   values: FormValues;
   updateValue: (key: keyof FormValues, value: string) => void;
+  hasStructuredRecommendation: boolean;
 }) {
   return (
     <div className="financial-assumptions">
       <div className="financial-heading">
         <strong>Financial assumptions</strong>
         <span>Inputs used by the existing economics model</span>
+        {hasStructuredRecommendation && (
+          <small>Working assumptions imported from the Agent — operator editable.</small>
+        )}
       </div>
       <div className="financial-grid">
         <CompactField
