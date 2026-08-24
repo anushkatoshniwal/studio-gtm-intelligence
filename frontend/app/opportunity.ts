@@ -308,18 +308,67 @@ function assumptionType(value: unknown): AssumptionType | null {
   return null;
 }
 
+function balancedJsonObject(text: string, startIndex: number) {
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = startIndex; index < text.length; index += 1) {
+    const character = text[index];
+    if (inString) {
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === '"') {
+        inString = false;
+      }
+      continue;
+    }
+    if (character === '"') {
+      inString = true;
+    } else if (character === "{") {
+      depth += 1;
+    } else if (character === "}") {
+      depth -= 1;
+      if (depth === 0) return text.slice(startIndex, index + 1);
+    }
+  }
+  return null;
+}
+
+function extractStructuredJson(text: string) {
+  const fencedBlocks = text.matchAll(/```(?:json)?\s*([\s\S]*?)\s*```/gi);
+  for (const block of fencedBlocks) {
+    const candidate = block[1].trim();
+    if (candidate.startsWith("{") && candidate.includes('"baseline_conversion"')) {
+      return candidate;
+    }
+  }
+
+  for (let startIndex = text.indexOf("{"); startIndex >= 0; startIndex = text.indexOf("{", startIndex + 1)) {
+    const candidate = balancedJsonObject(text, startIndex);
+    if (
+      candidate
+      && candidate.includes('"opportunity"')
+      && candidate.includes('"baseline_conversion"')
+      && candidate.includes('"expected_conversion"')
+    ) {
+      return candidate;
+    }
+  }
+  return null;
+}
+
 function parseStructuredRecommendation(
   text: string,
 ): OpportunityParseResult | null {
   const trimmed = text.trim();
-  const fencedMatch = trimmed.match(/```json\s*([\s\S]*?)\s*```/i);
-  const looksStructured = Boolean(fencedMatch) || trimmed.startsWith("{") || /^```\s*\{/i.test(trimmed);
+  const embeddedJson = extractStructuredJson(trimmed);
+  const looksStructured = Boolean(embeddedJson) || trimmed.startsWith("{");
   if (!looksStructured) return null;
 
-  const jsonText = (fencedMatch?.[1] ?? trimmed)
-    .replace(/^```\s*/i, "")
-    .replace(/\s*```$/, "")
-    .trim();
+  const jsonText = embeddedJson ?? trimmed;
 
   let payload: StructuredRecommendationPayload;
   try {
