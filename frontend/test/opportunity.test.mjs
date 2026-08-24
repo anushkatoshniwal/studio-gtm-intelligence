@@ -752,3 +752,77 @@ test("formats specific required-field errors", () => {
     "Missing required fields: Target segment, Hypothesis, Primary metric.",
   );
 });
+
+const structuredAgentHandoff = `### Opportunity
+
+Position Sarvam Studio as the integrated localization workflow for Indian-language media agencies by combining collaborative pronunciation/tone review, reusable language assets, and predictable campaign pricing to convert successful client pilots into annual contracts.
+
+### Target segment
+
+Indian-language media agencies running multilingual client campaigns across advertising, branded content, and regional localization.
+
+### Hypothesis
+
+IF we offer a structured agency workflow plan combining collaborative pronunciation/tone review, reusable approved terminology, and predictable campaign-based pricing FOR Indian-language media agencies running multilingual client campaigns THEN pilot-to-annual-contract conversion rate will increase BECAUSE collaborative review and pricing predictability are the most repeated unmet needs in agency customer calls, the market identifies shared pronunciation/tone review as a strong unmet workflow opportunity, and product data shows agency conversion follows successful client pilots.
+
+### Primary metric
+
+Pilot-to-annual-contract conversion rate
+
+### Product evidence
+
+Agency conversion follows a successful client pilot. Agencies activate collaboratively by inviting editors and creating campaign projects immediately, return weekly for four consecutive weeks, and convert after demonstrating delivery value across multilingual campaigns.
+
+### Customer evidence
+
+Collaborative review and client workspace controls are repeated agency capability gaps. Pricing predictability is also identified as an obstacle to annual commitment. Purchase intent is conditional on a successful multilingual client pilot.
+
+### Market evidence
+
+Shared pronunciation and tone review across regional campaign variants is identified as an unmet workflow need. Agencies show preference for predictable localization bundles instead of per-minute billing.
+
+### Key unknowns
+
+Agency market evidence is thin. Typical revision volume and bundle economics are unknown. The end client's role in the purchasing decision is also unclear.`;
+
+test("imports the exact structured GTM Intelligence Agent handoff", () => {
+  const result = parseGtmOpportunity(structuredAgentHandoff);
+  assert.equal(result.ok, true, result.ok ? "" : result.missing.join(", "));
+
+  assert.match(result.context.opportunity, /integrated localization workflow/);
+  assert.match(result.context.targetSegment, /Indian-language media agencies/);
+  assert.match(result.context.hypothesis, /pilot-to-annual-contract conversion rate will increase/);
+  assert.equal(result.context.primaryMetric, "Pilot-to-annual-contract conversion rate");
+  assert.match(result.context.keyUnknowns, /Agency market evidence is thin/);
+
+  const evidence = sourceEvidenceForDisplay(result.context.supportingEvidence);
+  assert.match(evidence.product, /Agency conversion follows a successful client pilot/);
+  assert.match(evidence.customer, /Collaborative review and client workspace controls/);
+  assert.match(evidence.market, /Shared pronunciation and tone review/);
+  assert.doesNotMatch(Object.values(evidence).join(" "), /Not separated in this brief/);
+});
+
+test("structured evidence headings tolerate capitalization, spacing, bullets, and inline values", () => {
+  const result = parseGtmOpportunity(`### Opportunity
+Agency workflow
+### Target segment
+Media agencies
+### Hypothesis
+Conversion will improve
+### Primary metric
+Pilot conversion
+###   PRODUCT EVIDENCE
+- Weekly repeat usage
+### Customer Evidence: Repeated review requests
+### market evidence
+* Predictable pricing demand
+### KEY UNKNOWNS
+- Revision volume is unknown`);
+
+  assert.equal(result.ok, true, result.ok ? "" : result.missing.join(", "));
+  const evidence = sourceEvidenceForDisplay(result.context.supportingEvidence);
+  assert.equal(evidence.product, "Weekly repeat usage");
+  assert.equal(evidence.customer, "Repeated review requests");
+  assert.equal(evidence.market, "Predictable pricing demand");
+  assert.equal(result.context.keyUnknowns, "Revision volume is unknown");
+});

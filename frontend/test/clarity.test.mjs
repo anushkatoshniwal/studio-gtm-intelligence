@@ -57,6 +57,27 @@ test("successful imports and context clearing reset the operator rationale", () 
   );
 });
 
+test("structured Agent imports do not fabricate operator assumptions", () => {
+  assert.match(pageSource, /const EMPTY_IMPORTED_VALUES:[\s\S]*?pilot_size: ""/);
+  assert.match(pageSource, /current_conversion_rate: ""/);
+  assert.match(pageSource, /expected_conversion_rate: ""/);
+  assert.match(pageSource, /evidence_confidence: ""/);
+  assert.match(pageSource, /feasibility: ""/);
+  assert.match(
+    pageSource,
+    /setContext\(parsed\.context\)[\s\S]*?setValues\(EMPTY_IMPORTED_VALUES\)[\s\S]*?setBaselineType\("unknown"\)/,
+  );
+  assert.match(pageSource, /Baseline not established — operator assumption required\./);
+  assert.match(pageSource, /Expected outcome not established — operator assumption required\./);
+  assert.match(pageSource, /Evidence confidence not set/);
+});
+
+test("evaluation waits for explicit operator assumptions", () => {
+  assert.match(pageSource, /REQUIRED_ASSUMPTION_FIELDS\.every/);
+  assert.match(pageSource, /!assumptionsComplete \|\| !rationale\.trim\(\)/);
+  assert.match(pageSource, /Confidence and feasibility are operator judgments\./);
+});
+
 test("the importer displays the parser's specific validation message", () => {
   assert.match(pageSource, /setImportError\(opportunityParseErrorMessage\(parsed\)\)/);
 });

@@ -39,6 +39,10 @@ test("keeps source evidence and detail disclosures available", () => {
   assert.match(pageSource, /className="source-summary"/);
   assert.match(pageSource, /className="source-detail"/);
   assert.match(pageSource, /context\.primaryMetric \|\| "Primary metric not specified"/);
+  assert.match(pageSource, /Imported from GTM Intelligence Agent/);
+  assert.match(pageSource, /className="key-unknowns"/);
+  assert.match(pageSource, /Uncertainties for the operator to consider when setting assumptions\./);
+  assert.match(pageSource, /<p className="context-label">Experiment hypothesis<\/p>/);
 });
 
 test("uses concise Experiment terminology", () => {
@@ -64,6 +68,13 @@ test("keeps the existing simulation contract unchanged", () => {
   assert.match(pageSource, /current_conversion_rate:\s*Number\(values\.current_conversion_rate\)/);
   assert.match(pageSource, /expected_conversion_rate:\s*Number\(values\.expected_conversion_rate\)/);
   assert.doesNotMatch(pageSource, /baseline_type:\s*/);
+});
+
+test("uses REFINE as the user-facing label without changing the REVIEW API value", () => {
+  assert.match(pageSource, /return decision === "REVIEW" \? "REFINE" : decision/);
+  assert.match(pageSource, /decisionLabel\(result\.decision\)/);
+  assert.match(pageSource, /GO, REFINE, or NO-GO/);
+  assert.match(pageSource, /decision: "GO" \| "REVIEW" \| "NO-GO"/);
 });
 
 test("keeps development output separate from the running production bundle", () => {

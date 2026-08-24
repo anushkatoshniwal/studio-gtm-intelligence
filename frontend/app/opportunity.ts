@@ -70,6 +70,13 @@ type HeadingMatch = {
   field: OpportunityField;
   inlineValue: string;
   sectionNumber: number | null;
+  evidenceSource?: keyof SourceEvidence;
+};
+
+export type SourceEvidence = {
+  product: string;
+  customer: string;
+  market: string;
 };
 
 const REQUIRED_FIELDS: OpportunityField[] = [
@@ -92,6 +99,12 @@ const CANONICAL_HEADINGS = OPPORTUNITY_FIELDS.flatMap((field) =>
     name: name.toLowerCase(),
   })),
 );
+
+const SOURCE_EVIDENCE_HEADINGS: Record<string, keyof SourceEvidence> = {
+  "product evidence": "product",
+  "customer evidence": "customer",
+  "market evidence": "market",
+};
 
 const EMBEDDED_BOLD_BOUNDARY_NAMES = [
   "Opportunity",
@@ -150,6 +163,32 @@ function normalizedBoundaryName(line: string) {
 function matchHeading(line: string): HeadingMatch | null {
   const { normalized, sectionNumber } = normalizeHeadingLine(line);
   const lower = normalized.toLowerCase();
+
+  for (const [name, evidenceSource] of Object.entries(SOURCE_EVIDENCE_HEADINGS)) {
+    if (lower === name || lower === `${name}:`) {
+      return {
+        field: "supportingEvidence",
+        inlineValue: "",
+        sectionNumber,
+        evidenceSource,
+      };
+    }
+
+    for (const separator of [":", "—", "-"]) {
+      const prefix = `${name}${separator}`;
+      if (lower.startsWith(prefix)) {
+        const inlineValue = normalized.slice(prefix.length).trim();
+        if (inlineValue) {
+          return {
+            field: "supportingEvidence",
+            inlineValue,
+            sectionNumber,
+            evidenceSource,
+          };
+        }
+      }
+    }
+  }
 
   for (const { field, name } of CANONICAL_HEADINGS) {
     if (lower === name || lower === `${name}:`) {
@@ -211,12 +250,6 @@ function cleanValue(lines: string[]) {
 
   return removeRepeatedClaims(removePresentationArtifacts(value));
 }
-
-export type SourceEvidence = {
-  product: string;
-  customer: string;
-  market: string;
-};
 
 export const MISSING_SOURCE_EVIDENCE = "Not separated in this brief.";
 
@@ -344,6 +377,11 @@ export function parseGtmOpportunity(text: string): OpportunityParseResult {
       hasSeenHeading = true;
       activeField = heading.field;
       primaryMetricParagraphEnded = false;
+      if (heading.evidenceSource) {
+        const sourceLabel = heading.evidenceSource[0].toUpperCase()
+          + heading.evidenceSource.slice(1);
+        collected.supportingEvidence.push(`${sourceLabel}:`);
+      }
       if (heading.inlineValue) collected[activeField].push(heading.inlineValue);
       continue;
     }

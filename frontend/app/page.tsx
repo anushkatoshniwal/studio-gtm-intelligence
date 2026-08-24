@@ -71,6 +71,31 @@ const INITIAL_VALUES: FormValues = {
   feasibility: "4",
 };
 
+const EMPTY_IMPORTED_VALUES: FormValues = {
+  pilot_size: "",
+  current_conversion_rate: "",
+  expected_conversion_rate: "",
+  revenue_per_customer: "",
+  acquisition_cost: "",
+  pilot_cost: "",
+  fixed_team_cost: "",
+  expansion_revenue_per_customer: "",
+  evidence_confidence: "",
+  feasibility: "",
+};
+
+const REQUIRED_ASSUMPTION_FIELDS: (keyof FormValues)[] = [
+  "pilot_size",
+  "current_conversion_rate",
+  "expected_conversion_rate",
+  "revenue_per_customer",
+  "acquisition_cost",
+  "pilot_cost",
+  "fixed_team_cost",
+  "evidence_confidence",
+  "feasibility",
+];
+
 const EVIDENCE_OPTIONS = [
   "Very weak evidence",
   "Limited evidence",
@@ -101,6 +126,7 @@ function formatNumber(value: number | null) {
 }
 
 function formatRate(value: string) {
+  if (!value.trim()) return "—";
   const rate = Number(value);
   return Number.isFinite(rate) ? `${numberFormatter.format(rate * 100)}%` : "—";
 }
@@ -119,6 +145,10 @@ function decisionSummary(decision: SimulationResult["decision"]) {
     return "Refine or validate the assumptions before running.";
   }
   return "Do not run this experiment under the current assumptions.";
+}
+
+function decisionLabel(decision: SimulationResult["decision"]) {
+  return decision === "REVIEW" ? "REFINE" : decision;
 }
 
 function baselineContext(type: BaselineType) {
@@ -209,6 +239,8 @@ export default function Home() {
     }
 
     setContext(parsed.context);
+    setValues(EMPTY_IMPORTED_VALUES);
+    setBaselineType("unknown");
     setIsImported(true);
     setIsImporterOpen(false);
     setIsEditingContext(false);
@@ -236,6 +268,15 @@ export default function Home() {
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const assumptionsComplete = REQUIRED_ASSUMPTION_FIELDS.every(
+      (field) => values[field].trim() !== "",
+    );
+    if (!assumptionsComplete || !rationale.trim()) {
+      setError(
+        "Set the baseline, expected outcome, rationale, test scope, operator judgments, and financial assumptions before evaluating.",
+      );
+      return;
+    }
     setIsLoading(true);
     setError(null);
 
@@ -291,7 +332,7 @@ export default function Home() {
         <div className="header-decision">
           <span>Current decision</span>
           <strong className={`header-status header-status-${result?.decision.toLowerCase() || "ready"}`}>
-            {result?.decision || "READY"}
+            {result ? decisionLabel(result.decision) : "READY"}
           </strong>
           <p>{result ? decisionSummary(result.decision) : "Set the assumptions, then evaluate the experiment."}</p>
         </div>
@@ -326,16 +367,22 @@ export default function Home() {
           aria-expanded={isImporterOpen}
           aria-controls="opportunity-importer"
         >
-          {isImporterOpen ? "Close importer" : "Start with a GTM decision brief"}
+          {isImporterOpen
+            ? "Close importer"
+            : isImported
+              ? "Replace imported opportunity"
+              : "Start with a GTM decision brief"}
         </button>
         {isImported && !isImporterOpen && (
-          <p className="import-confirmation" role="status">Opportunity imported</p>
+          <p className="import-confirmation" role="status">
+            Opportunity imported from GTM Intelligence Agent
+          </p>
         )}
         {isImporterOpen && (
           <div className="importer" id="opportunity-importer">
             <div className="importer-heading">
-              <h3>Start with a GTM decision brief</h3>
-              <p>Paste the output from your GTM Intelligence Agent. We&apos;ll turn the strongest opportunity into an experiment.</p>
+              <h3>Import GTM Intelligence Agent handoff</h3>
+              <p>Paste the complete structured handoff. The Lab will preserve its opportunity, evidence, and unknowns.</p>
             </div>
             <label htmlFor="gtm-opportunity-text">
               <span>Paste GTM decision brief</span>
@@ -348,7 +395,7 @@ export default function Home() {
                 setOpportunityText(event.target.value);
                 setImportError(null);
               }}
-              placeholder={"Opportunity\nThe strongest opportunity\n\nWho is this for?\nTarget segment\n\nWhy test this?\nEvidence behind the opportunity\n\nWhat should we test?\nExperiment hypothesis\n\nPrimary metric\nOne metric\n\nWhat could make us wrong?\nRisks or unknowns"}
+              placeholder={"### Opportunity\nWhat the Agent recommends testing\n\n### Target segment\nWho the test is for\n\n### Hypothesis\nWhat change is expected\n\n### Primary metric\nOne metric\n\n### Product evidence\nObserved product evidence\n\n### Customer evidence\nObserved customer evidence\n\n### Market evidence\nObserved market evidence\n\n### Key unknowns\nWhat remains uncertain"}
             />
             {importError && (
               <p className="import-error" role="alert">
@@ -374,8 +421,12 @@ export default function Home() {
         )}
       </section>
 
-      <form className="workspace" onSubmit={handleSubmit}>
-        <EvidenceCard context={context} confidence={Number(values.evidence_confidence)} />
+      <form className="workspace" onSubmit={handleSubmit} noValidate>
+        <EvidenceCard
+          context={context}
+          confidence={Number(values.evidence_confidence)}
+          isImported={isImported}
+        />
 
         <OpportunityCard
           context={context}
@@ -416,9 +467,15 @@ export default function Home() {
               <span>conversion</span>
             </div>
           </div>
-          <div className="primary-metric">
-            <p className="context-label">Primary metric</p>
-            <strong>{context.primaryMetric || "Primary metric not specified"}</strong>
+          <div className="experiment-brief">
+            <div>
+              <p className="context-label">Experiment hypothesis</p>
+              <strong>{context.hypothesis}</strong>
+            </div>
+            <div>
+              <p className="context-label">Primary metric</p>
+              <strong>{context.primaryMetric || "Primary metric not specified"}</strong>
+            </div>
           </div>
 
           <div className="experiment-inputs">
@@ -436,6 +493,11 @@ export default function Home() {
                   max="1"
                   onChange={(value) => updateValue("current_conversion_rate", value)}
                 />
+                {isImported && !values.current_conversion_rate && (
+                  <p className="assumption-required">
+                    Baseline not established — operator assumption required.
+                  </p>
+                )}
                 <BaselineTypeSelector
                   value={baselineType}
                   onChange={(value) => {
@@ -459,13 +521,21 @@ export default function Home() {
                 max="1"
                 onChange={(value) => updateValue("expected_conversion_rate", value)}
               />
+              {isImported && !values.expected_conversion_rate && (
+                <p className="assumption-required">
+                  Expected outcome not established — operator assumption required.
+                </p>
+              )}
 
               <label className="rationale-field" htmlFor="experiment-rationale">
                 <span>Why do we believe this?</span>
                 <textarea
                   id="experiment-rationale"
                   value={rationale}
-                  onChange={(event) => setRationale(event.target.value)}
+                  onChange={(event) => {
+                    setRationale(event.target.value);
+                    invalidateSimulation();
+                  }}
                   rows={4}
                   placeholder="Summarize the evidence or benchmark behind your expectation."
                 />
@@ -540,7 +610,7 @@ export default function Home() {
             {!result && !isLoading && (
               <div className="empty-state">
                 <span>Ready to evaluate</span>
-                <p>Evaluate your assumptions to see GO, REVIEW, or NO-GO.</p>
+                <p>Evaluate your assumptions to see GO, REFINE, or NO-GO.</p>
               </div>
             )}
             {isLoading && (
@@ -645,8 +715,17 @@ function OpportunityCard({
   );
 }
 
-function EvidenceCard({ context, confidence }: { context: OpportunityContext; confidence: number }) {
+function EvidenceCard({
+  context,
+  confidence,
+  isImported,
+}: {
+  context: OpportunityContext;
+  confidence: number;
+  isImported: boolean;
+}) {
   const sourceEvidence = sourceEvidenceForDisplay(context.supportingEvidence);
+  const hasConfidence = confidence >= 1 && confidence <= 5;
   const sourcePreviews = [
     sourceEvidence.product,
     sourceEvidence.customer,
@@ -656,7 +735,12 @@ function EvidenceCard({ context, confidence }: { context: OpportunityContext; co
   return (
       <section className="workspace-card evidence-card" aria-labelledby="evidence-title">
         <WorkspaceHeading step="01" cue="SIGNAL" title="Signal" purpose="Why do we believe this opportunity exists?" titleId="evidence-title" />
-        <h3 className="card-title">Evidence at a glance</h3>
+        <div className="evidence-title-row">
+          <h3 className="card-title">Evidence at a glance</h3>
+          {isImported && (
+            <span className="agent-badge">Imported from GTM Intelligence Agent</span>
+          )}
+        </div>
         <div className="source-blocks">
           {(["Product", "Customer", "Market"] as const).map((source, index) => (
             <article className="source-block" key={source}>
@@ -669,16 +753,22 @@ function EvidenceCard({ context, confidence }: { context: OpportunityContext; co
                 {sourcePreviews[index].detail && (
                   <span className="source-detail">{sourcePreviews[index].detail}</span>
                 )}
-                <span className="strength-dots" aria-label={`Evidence confidence ${confidence} out of 5`}>
-                  {[1, 2, 3, 4, 5].map((dot) => <i className={dot <= confidence ? "active" : ""} key={dot} />)}
-                </span>
+                {hasConfidence && (
+                  <span className="strength-dots" aria-label={`Operator evidence confidence ${confidence} out of 5`}>
+                    {[1, 2, 3, 4, 5].map((dot) => <i className={dot <= confidence ? "active" : ""} key={dot} />)}
+                  </span>
+                )}
               </div>
             </article>
           ))}
         </div>
         <div className="signal-strength">
-          <span>{confidence >= 4 ? "Strong signal" : confidence === 3 ? "Moderate signal" : "Developing signal"}</span>
-          <small>Evidence confidence {confidence}/5</small>
+          <span>Operator judgment</span>
+          <small>
+            {hasConfidence
+              ? `Evidence confidence ${confidence}/5`
+              : "Evidence confidence not set"}
+          </small>
         </div>
         <details className="full-evidence">
           <summary>
@@ -689,10 +779,16 @@ function EvidenceCard({ context, confidence }: { context: OpportunityContext; co
             {context.whyNow && <EvidenceDetail label="Why now" value={context.whyNow} />}
             {context.supportingEvidence && <EvidenceDetail label="Supporting evidence" value={context.supportingEvidence} />}
             {context.contradictingEvidence && <EvidenceDetail label="Contradicting evidence" value={context.contradictingEvidence} />}
-            {context.keyUnknowns && <EvidenceDetail label="Key unknowns" value={context.keyUnknowns} />}
             {context.recommendedGtmMotion && <EvidenceDetail label="Recommended GTM motion" value={context.recommendedGtmMotion} />}
           </div>
         </details>
+        {context.keyUnknowns && (
+          <aside className="key-unknowns" aria-label="Key unknowns">
+            <p className="context-label">Key unknowns</p>
+            <div>{context.keyUnknowns}</div>
+            <small>Uncertainties for the operator to consider when setting assumptions.</small>
+          </aside>
+        )}
       </section>
   );
 }
@@ -794,6 +890,7 @@ function RatingSelector({
       <span>{label}</span>
       <small>{helper}</small>
       <select id={id} value={value} onChange={(event) => onChange(event.target.value)}>
+        <option value="" disabled>Select judgment</option>
         {options.map((option, index) => (
           <option key={option} value={index + 1}>
             {index + 1} — {option}
@@ -1003,7 +1100,7 @@ function DecisionResult({ result, pilotSize, baselineType }: { result: Simulatio
         <div className="decision-topline">
           <div>
             <p>Decision</p>
-            <strong>{result.decision}</strong>
+            <strong>{decisionLabel(result.decision)}</strong>
           </div>
         </div>
         <p className="decision-summary">{decisionSummary(result.decision)}</p>

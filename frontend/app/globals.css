@@ -1980,6 +1980,50 @@ body {
   letter-spacing: -0.015em;
 }
 
+.evidence-title-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.evidence-title-row .card-title {
+  margin: 0;
+}
+
+.key-unknowns {
+  margin-top: 14px;
+  padding: 13px 15px;
+  border-left: 3px solid #d2a94d;
+  background: #fff9e9;
+}
+
+.key-unknowns > div {
+  color: #4e4a3e;
+  font-size: 0.76rem;
+  line-height: 1.55;
+  white-space: pre-line;
+}
+
+.key-unknowns small {
+  display: block;
+  margin-top: 7px;
+  color: #776d56;
+  font-size: 0.68rem;
+}
+
+.assumption-required {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 7px;
+  color: #735216;
+  background: #fff5d9;
+  font-size: 0.69rem;
+  line-height: 1.45;
+}
+
 .source-blocks {
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 12px;
