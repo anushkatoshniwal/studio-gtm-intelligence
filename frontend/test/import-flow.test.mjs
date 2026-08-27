@@ -148,6 +148,22 @@ test("rendered import transfers the structured recommendation into the actual fo
   assert.ok(container.textContent.includes(recommendation.hypothesis));
   assert.ok(container.textContent.includes(recommendation.key_risks[0]));
 
+  const opportunityHeadline = container.querySelector(".opportunity-headline strong");
+  const hypothesisSummary = container.querySelector(".opportunity-hypothesis-summary strong");
+  const fullOpportunity = container.querySelector("details.opportunity-detail");
+  const fullHypothesis = container.querySelector("details.hypothesis-detail");
+  assert.ok(opportunityHeadline.textContent.length < recommendation.opportunity.length);
+  assert.ok(hypothesisSummary.textContent.length < recommendation.hypothesis.length);
+  assert.equal(fullOpportunity.open, false);
+  assert.equal(fullHypothesis.open, false);
+  assert.ok(fullOpportunity.textContent.includes(recommendation.opportunity));
+  assert.ok(fullHypothesis.textContent.includes(recommendation.hypothesis));
+  assert.equal(
+    container.querySelector(".opportunity-content").textContent.split(recommendation.hypothesis).length - 1,
+    1,
+  );
+  assert.equal(screen.queryByText("View context"), null);
+
   await user.click(screen.getByRole("button", { name: "Evaluate Experiment" }));
   await waitFor(() => assert.equal(requests.length, 1));
   assert.equal(requests[0].current_conversion_rate, 0.02);

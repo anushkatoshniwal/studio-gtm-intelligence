@@ -48,8 +48,18 @@ test("keeps source evidence and detail disclosures available", () => {
   assert.match(pageSource, /<details className="key-unknowns">/);
   assert.match(pageSource, /key \{unknowns.length === 1 \? "unknown" : "unknowns"\}/);
   assert.match(pageSource, /Uncertainties for the operator to consider when setting assumptions\./);
-  assert.match(pageSource, /Hypothesis · IF \/ FOR \/ THEN \/ BECAUSE/);
-  assert.match(pageSource, /"View full hypothesis"/);
+  assert.match(pageSource, /<summary>View full opportunity<\/summary>/);
+  assert.match(pageSource, /<summary>View hypothesis<\/summary>/);
+  assert.match(pageSource, /className="opportunity-hypothesis-summary"/);
+  assert.doesNotMatch(pageSource, /<summary>View context<\/summary>/);
+});
+
+test("keeps complete Opportunity text out of the default scan view", () => {
+  assert.match(pageSource, /compactPreview\(context\.opportunity, 112\)/);
+  assert.match(pageSource, /compactPreview\(context\.hypothesis, 125\)/);
+  assert.match(pageSource, /<p className="context-label">Hypothesis<\/p>/);
+  assert.match(pageSource, /className="full-context hypothesis-detail"/);
+  assert.match(pageSource, /<p>\{context\.hypothesis\}<\/p>/);
 });
 
 test("uses progressive disclosure for rationale and financial detail", () => {

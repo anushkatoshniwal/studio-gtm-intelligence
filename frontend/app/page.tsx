@@ -774,6 +774,9 @@ function OpportunityCard({
     value: string,
   ) => void;
 }) {
+  const opportunityPreview = compactPreview(context.opportunity, 112);
+  const hypothesisPreview = compactPreview(context.hypothesis, 125);
+
   return (
     <section className="workspace-card opportunity-card" aria-labelledby="opportunity-title">
       <div className="opportunity-heading">
@@ -807,16 +810,27 @@ function OpportunityCard({
         </div>
       ) : (
         <div className="opportunity-content">
-          <BriefItem label="Opportunity" value={context.opportunity} emphasis />
-          <div className="opportunity-secondary">
-            <BriefItem label="Target segment" value={context.targetSegment} />
-            <BriefItem label="Hypothesis · IF / FOR / THEN / BECAUSE" value={context.hypothesis} />
+          <article className="brief-item brief-emphasis opportunity-headline">
+            <p className="context-label">Opportunity</p>
+            <strong>{opportunityPreview.text}</strong>
+          </article>
+          <BriefItem label="Target segment" value={context.targetSegment} />
+          <article className="opportunity-hypothesis-summary">
+            <p className="context-label">Hypothesis</p>
+            <strong>{hypothesisPreview.text}</strong>
+          </article>
+          <div className="opportunity-disclosures">
+            <details className="full-context opportunity-detail">
+              <summary>View full opportunity</summary>
+              <p><strong>Complete opportunity</strong><br />{context.opportunity}</p>
+              {context.whyNow && <p><strong>Why this matters now</strong><br />{context.whyNow}</p>}
+              {context.expectedOutcome && <p><strong>Expected outcome</strong><br />{context.expectedOutcome}</p>}
+            </details>
+            <details className="full-context hypothesis-detail">
+              <summary>View hypothesis</summary>
+              <p>{context.hypothesis}</p>
+            </details>
           </div>
-          <details className="full-context opportunity-context">
-            <summary>View context</summary>
-            {context.whyNow && <p><strong>Why this matters now</strong><br />{context.whyNow}</p>}
-            {context.expectedOutcome && <p><strong>Expected outcome</strong><br />{context.expectedOutcome}</p>}
-          </details>
         </div>
       )}
     </section>
@@ -908,16 +922,13 @@ function EvidenceCard({
 
 function BriefItem({ label, value, emphasis = false, quote = false }: { label: string; value: string; emphasis?: boolean; quote?: boolean }) {
   const preview = compactPreview(value, emphasis ? 180 : 240);
-  const expansionLabel = label.startsWith("Hypothesis")
-    ? "View full hypothesis"
-    : `Read full ${label.toLowerCase()}`;
   return (
     <article className={`brief-item${emphasis ? " brief-emphasis" : ""}${quote ? " brief-quote" : ""}`}>
       <p className="context-label">{label}</p>
       <strong>{quote ? `“${preview.text}”` : preview.text}</strong>
       {preview.isShortened && (
         <details className="full-context">
-          <summary>{expansionLabel}</summary>
+          <summary>Read full {label.toLowerCase()}</summary>
           <p>{value}</p>
         </details>
       )}

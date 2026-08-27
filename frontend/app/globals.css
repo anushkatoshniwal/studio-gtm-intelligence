@@ -2978,3 +2978,77 @@ body {
     grid-template-columns: 1fr;
   }
 }
+
+/* Opportunity scan hierarchy: concise by default, complete text on demand. */
+.opportunity-content .opportunity-headline {
+  grid-row: 1;
+  grid-column: 1;
+  min-height: 108px;
+}
+
+.opportunity-content > .brief-item:not(.brief-emphasis) {
+  grid-row: 1;
+  grid-column: 2;
+  align-self: stretch;
+}
+
+.opportunity-hypothesis-summary {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  padding: 12px 16px;
+  border-top: 1px solid #e2e8e1;
+}
+
+.opportunity-hypothesis-summary strong {
+  display: block;
+  max-width: 82ch;
+  color: #30463a;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+
+.opportunity-disclosures {
+  grid-row: 3;
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 20px;
+  padding: 0 16px 4px;
+}
+
+.opportunity-disclosures .full-context {
+  margin: 0;
+}
+
+.opportunity-disclosures summary {
+  cursor: pointer;
+  color: #24683c;
+}
+
+.opportunity-disclosures details[open] {
+  flex-basis: 100%;
+  padding-bottom: 8px;
+}
+
+.opportunity-disclosures details[open] + details {
+  flex-basis: auto;
+}
+
+.opportunity-detail p,
+.hypothesis-detail p {
+  max-width: 78ch;
+}
+
+@media (max-width: 760px) {
+  .opportunity-content .opportunity-headline,
+  .opportunity-content > .brief-item:not(.brief-emphasis),
+  .opportunity-hypothesis-summary,
+  .opportunity-disclosures {
+    grid-row: auto;
+    grid-column: 1;
+  }
+
+  .opportunity-content .opportunity-headline {
+    min-height: 0;
+  }
+}
