@@ -164,6 +164,38 @@ test("rendered import transfers the structured recommendation into the actual fo
   );
   assert.equal(screen.queryByText("View context"), null);
 
+  const evidenceToggles = screen.getAllByText("View evidence");
+  assert.equal(evidenceToggles.length, 3);
+  for (const [index, toggle] of evidenceToggles.entries()) {
+    const disclosure = toggle.closest("details");
+    assert.equal(disclosure.open, false);
+    await user.click(toggle);
+    assert.equal(disclosure.open, true);
+    assert.ok(disclosure.textContent.includes(Object.values(recommendation.key_evidence)[index]));
+    await user.click(toggle);
+    assert.equal(disclosure.open, false);
+  }
+
+  const supportingToggle = screen.getByText("View supporting context");
+  const supportingContext = supportingToggle.closest("details");
+  assert.equal(supportingContext.open, false);
+  await user.click(supportingToggle);
+  assert.equal(supportingContext.open, true);
+  assert.equal(supportingContext.querySelector(".context-toggle-hide").textContent, "Hide supporting context");
+  for (const evidence of Object.values(recommendation.key_evidence)) {
+    assert.ok(supportingContext.textContent.includes(evidence));
+  }
+  assert.ok(supportingContext.textContent.includes(recommendation.key_risks[0]));
+  await user.click(supportingContext.querySelector("summary"));
+  assert.equal(supportingContext.open, false);
+
+  const unknownsDisclosure = container.querySelector("details.key-unknowns");
+  await user.click(unknownsDisclosure.querySelector("summary"));
+  assert.equal(unknownsDisclosure.open, true);
+  assert.ok(unknownsDisclosure.textContent.includes(recommendation.key_unknowns[0]));
+  await user.click(unknownsDisclosure.querySelector("summary"));
+  assert.equal(unknownsDisclosure.open, false);
+
   await user.click(screen.getByRole("button", { name: "Evaluate Experiment" }));
   await waitFor(() => assert.equal(requests.length, 1));
   assert.equal(requests[0].current_conversion_rate, 0.02);

@@ -35,11 +35,14 @@ test("renders the five GTM workspace stages in order", () => {
 test("keeps source evidence and detail disclosures available", () => {
   assert.match(pageSource, /\["Product", "Customer", "Market"\]/);
   assert.match(pageSource, /<summary>View evidence<\/summary>/);
-  assert.match(pageSource, /<strong>View supporting context<\/strong>/);
+  assert.match(pageSource, /context-toggle-view">View supporting context<\/strong>/);
+  assert.match(pageSource, /context-toggle-hide">Hide supporting context<\/strong>/);
   assert.match(pageSource, /<strong>View financial assumptions<\/strong>/);
   assert.match(pageSource, /See detailed reasoning &amp; assumptions/);
   assert.match(pageSource, /Recommended GTM motion/);
   assert.match(pageSource, /sourceEvidenceForDisplay\(context\.supportingEvidence\)/);
+  assert.match(pageSource, /className="supporting-source-context"/);
+  assert.match(pageSource, /label=\{`\$\{source\} evidence`\}/);
   assert.match(pageSource, /\.map\(conciseEvidencePreview\)/);
   assert.match(pageSource, /className="source-summary"/);
   assert.match(pageSource, /className="source-detail"/);

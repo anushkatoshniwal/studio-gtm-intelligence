@@ -1910,6 +1910,41 @@ button:disabled {
   }
 }
 
+/* Evidence disclosure labels and complete expanded context. */
+.context-toggle-hide {
+  display: none;
+}
+
+.full-evidence[open] .context-toggle-view {
+  display: none;
+}
+
+.full-evidence[open] .context-toggle-hide {
+  display: inline;
+}
+
+.full-evidence[open] .disclosure-action {
+  transform: rotate(90deg);
+}
+
+.supporting-source-context {
+  display: grid;
+  gap: 0;
+  margin-bottom: 14px;
+  border: 1px solid #e1e6df;
+  border-radius: 9px;
+  background: #fff;
+}
+
+.supporting-source-context .evidence-detail {
+  padding: 14px 16px;
+}
+
+.supporting-source-context .evidence-detail > div {
+  max-width: none;
+  white-space: pre-wrap;
+}
+
 /* Reference-aligned vertical decision workspace */
 body {
   background:

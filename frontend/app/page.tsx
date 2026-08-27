@@ -900,10 +900,20 @@ function EvidenceCard({
         </div>
         <details className="full-evidence">
           <summary>
-            <strong>View supporting context</strong>
+            <strong className="context-toggle-view">View supporting context</strong>
+            <strong className="context-toggle-hide">Hide supporting context</strong>
             <span className="disclosure-action">→</span>
           </summary>
           <div className="full-evidence-content">
+            <div className="supporting-source-context">
+              {(["Product", "Customer", "Market"] as const).map((source, index) => (
+                <EvidenceDetail
+                  key={source}
+                  label={`${source} evidence`}
+                  value={sourceDetails[index]}
+                />
+              ))}
+            </div>
             {context.whyNow && <EvidenceDetail label="Why now" value={context.whyNow} />}
             {context.contradictingEvidence && <EvidenceDetail label="Contradicting evidence" value={context.contradictingEvidence} />}
             {context.recommendedGtmMotion && <EvidenceDetail label="Recommended GTM motion" value={context.recommendedGtmMotion} />}
