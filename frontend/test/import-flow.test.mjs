@@ -34,6 +34,7 @@ const { cleanup, fireEvent, render, screen, waitFor } = await import(
 const userEvent = (await import("@testing-library/user-event")).default;
 const pageModule = await import("../app/page.tsx");
 const Home = pageModule.default?.default ?? pageModule.default;
+const numberFormatter = new Intl.NumberFormat("en-IN", { maximumFractionDigits: 2 });
 
 const recommendation = {
   opportunity: "Position Sarvam Studio as the integrated localization workflow for Indian-language media agencies by combining collaborative pronunciation/tone review, reusable language assets, and predictable campaign pricing to convert successful client pilots into annual contracts.",
@@ -76,16 +77,20 @@ ${JSON.stringify(recommendation, null, 2)}
 \`\`\``;
 
 function simulationResponse(expectedConversion) {
-  const edited = expectedConversion === 0.05;
+  const incrementalCustomers = (expectedConversion - 0.02) * 500;
+  const incrementalRevenue = incrementalCustomers * 100000;
+  const incrementalRoi = Number(
+    (((incrementalRevenue - 300000) / 300000) * 100).toFixed(2),
+  );
   return {
     current_customers: 10,
-    expected_customers: edited ? 25 : 20,
-    incremental_customers: edited ? 15 : 10,
+    expected_customers: 10 + incrementalCustomers,
+    incremental_customers: incrementalCustomers,
     baseline_revenue: 1000000,
-    expected_revenue: edited ? 2500000 : 2000000,
-    incremental_revenue: edited ? 1500000 : 1000000,
+    expected_revenue: 1000000 + incrementalRevenue,
+    incremental_revenue: incrementalRevenue,
     total_incremental_cost: 300000,
-    incremental_roi: edited ? 400 : 233.33,
+    incremental_roi: incrementalRoi,
     break_even_incremental_customers: 3,
     break_even_expected_conversion_rate: 0.026,
     decision: "GO",
@@ -106,7 +111,7 @@ test("rendered import transfers the structured recommendation into the actual fo
   };
 
   const user = userEvent.setup({ document: dom.window.document });
-  render(React.createElement(Home));
+  const { container } = render(React.createElement(Home));
 
   await user.click(screen.getByRole("button", { name: "Start with a GTM decision brief" }));
   fireEvent.change(screen.getByLabelText("Paste structured experiment recommendation"), {
@@ -129,6 +134,20 @@ test("rendered import transfers the structured recommendation into the actual fo
   assert.equal(screen.getByLabelText(/^Pilot cost/).value, "150000");
   assert.equal(screen.getByLabelText(/^Fixed team cost/).value, "50000");
 
+  const sourceEvidence = [...container.querySelectorAll("details.source-evidence-disclosure")];
+  assert.equal(sourceEvidence.length, 3);
+  assert.ok(sourceEvidence.every((detail) => !detail.open));
+  assert.ok(sourceEvidence[0].textContent.includes(recommendation.key_evidence.product));
+  assert.ok(sourceEvidence[1].textContent.includes(recommendation.key_evidence.customer));
+  assert.ok(sourceEvidence[2].textContent.includes(recommendation.key_evidence.market));
+  assert.equal(container.querySelector("details.key-unknowns")?.open, false);
+  assert.ok(container.querySelector("details.key-unknowns")?.textContent.includes(recommendation.key_unknowns[0]));
+  assert.equal(container.querySelector("details.rationale-disclosure")?.open, false);
+  assert.ok(container.querySelector("details.rationale-disclosure")?.textContent.includes(recommendation.rationale));
+  assert.equal(container.querySelector("details.economics-disclosure")?.open, false);
+  assert.ok(container.textContent.includes(recommendation.hypothesis));
+  assert.ok(container.textContent.includes(recommendation.key_risks[0]));
+
   await user.click(screen.getByRole("button", { name: "Evaluate Experiment" }));
   await waitFor(() => assert.equal(requests.length, 1));
   assert.equal(requests[0].current_conversion_rate, 0.02);
@@ -148,6 +167,25 @@ test("rendered import transfers the structured recommendation into the actual fo
   assert.equal(requests[1].expected_conversion_rate, 0.05);
   assert.ok(screen.getByText("400%"));
   assert.ok(screen.getAllByText("15").length >= 1);
+
+  fireEvent.change(screen.getByLabelText("Expected conversion rate"), {
+    target: { value: "0.4" },
+  });
+  await user.click(screen.getByRole("button", { name: "Evaluate Experiment" }));
+  await waitFor(() => assert.equal(requests.length, 3));
+  const roiAtForty = simulationResponse(0.4).incremental_roi;
+  assert.ok(screen.getByText(`${numberFormatter.format(roiAtForty)}%`));
+
+  fireEvent.change(screen.getByLabelText("Expected conversion rate"), {
+    target: { value: "0.3" },
+  });
+  await user.click(screen.getByRole("button", { name: "Evaluate Experiment" }));
+  await waitFor(() => assert.equal(requests.length, 4));
+  const roiAtThirty = simulationResponse(0.3).incremental_roi;
+  assert.equal(requests[2].expected_conversion_rate, 0.4);
+  assert.equal(requests[3].expected_conversion_rate, 0.3);
+  assert.notEqual(roiAtForty, roiAtThirty);
+  assert.ok(screen.getByText(`${numberFormatter.format(roiAtThirty)}%`));
 
   cleanup();
 });

@@ -1682,6 +1682,234 @@ button:disabled {
   }
 }
 
+/* Concise decision-workspace refinements */
+.source-block {
+  align-content: start;
+}
+
+.source-evidence-disclosure {
+  margin-top: 10px;
+}
+
+.source-evidence-disclosure summary,
+.key-unknowns summary,
+.rationale-disclosure summary {
+  cursor: pointer;
+  list-style: none;
+}
+
+.source-evidence-disclosure summary::-webkit-details-marker,
+.key-unknowns summary::-webkit-details-marker,
+.rationale-disclosure summary::-webkit-details-marker {
+  display: none;
+}
+
+.source-evidence-disclosure summary {
+  color: #24683c;
+  font-size: 0.68rem;
+  font-weight: 800;
+}
+
+.source-evidence-disclosure summary::after {
+  margin-left: 6px;
+  content: "+";
+}
+
+.source-evidence-disclosure[open] summary::after {
+  content: "−";
+}
+
+.source-evidence-disclosure div {
+  margin-top: 8px;
+  color: #536159;
+  font-size: 0.69rem;
+  line-height: 1.5;
+}
+
+.key-unknowns {
+  padding: 0;
+  border: 1px solid #eadba9;
+  border-left: 3px solid #d2a94d;
+  border-radius: 8px;
+}
+
+.key-unknowns summary {
+  padding: 11px 14px;
+  color: #72561c;
+  font-size: 0.72rem;
+  font-weight: 800;
+}
+
+.key-unknowns summary::after {
+  float: right;
+  content: "+";
+}
+
+.key-unknowns[open] summary::after {
+  content: "−";
+}
+
+.key-unknowns ul {
+  margin: 0;
+  padding: 0 28px 4px;
+  color: #4e4a3e;
+  font-size: 0.73rem;
+  line-height: 1.55;
+}
+
+.key-unknowns small {
+  padding: 0 14px 12px;
+}
+
+.opportunity-content {
+  grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.9fr);
+}
+
+.opportunity-secondary {
+  display: grid;
+  align-self: stretch;
+  gap: 8px;
+}
+
+.opportunity-secondary .brief-item {
+  padding: 12px 15px;
+  background: #f8faf7;
+}
+
+.opportunity-secondary .brief-item strong {
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.opportunity-context {
+  grid-column: 1 / -1;
+}
+
+.experiment-groups {
+  display: grid;
+  grid-template-columns: minmax(0, 1.7fr) minmax(220px, 0.8fr);
+  gap: 14px;
+}
+
+.experiment-group {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e1e6df;
+  border-radius: 10px;
+  background: #fbfcfa;
+}
+
+.experiment-group-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.experiment-group-heading p {
+  margin: 0;
+  color: #244a32;
+  font-size: 0.7rem;
+  font-weight: 850;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.experiment-group-heading span {
+  color: #6a776e;
+  font-size: 0.66rem;
+}
+
+.test-assumptions {
+  grid-row: span 2;
+}
+
+.test-assumption-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 16px;
+}
+
+.assumption-input {
+  min-width: 0;
+}
+
+.experiment-group .question-row,
+.experiment-group .baseline-type-field,
+.experiment-group .rating-field,
+.experiment-group .rationale-field {
+  padding: 8px 0;
+  border: 0;
+  background: transparent;
+}
+
+.confidence-group .judgment-grid {
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+.rationale-disclosure summary {
+  display: grid;
+  gap: 8px;
+  padding: 10px 11px;
+  border-radius: 8px;
+  color: #4f5e55;
+  background: #fff;
+  font-size: 0.7rem;
+  line-height: 1.45;
+}
+
+.rationale-disclosure summary strong {
+  color: #24683c;
+  font-size: 0.68rem;
+}
+
+.rationale-disclosure[open] summary {
+  margin-bottom: 6px;
+}
+
+.experiment-card .rationale-disclosure .rationale-field textarea {
+  min-height: 76px;
+}
+
+.impact-flow {
+  grid-template-columns: minmax(120px, 1fr) 24px minmax(130px, 1fr) 24px minmax(120px, 1fr) 24px minmax(110px, 1fr);
+}
+
+.working-assumptions-label {
+  margin: 0;
+  color: #68766d;
+  font-size: 0.68rem;
+  text-align: center;
+}
+
+@media (max-width: 940px) {
+  .experiment-groups {
+    grid-template-columns: 1fr;
+  }
+
+  .test-assumptions {
+    grid-row: auto;
+  }
+}
+
+@media (max-width: 760px) {
+  .opportunity-secondary,
+  .experiment-groups,
+  .test-assumption-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .experiment-group-heading {
+    display: grid;
+  }
+
+  .impact-flow {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* Reference-aligned vertical decision workspace */
 body {
   background:
@@ -2718,5 +2946,35 @@ body {
 
   .test-node {
     order: 0;
+  }
+}
+
+/* Final cascade for the compact workspace components. */
+.key-unknowns {
+  padding: 0;
+  border: 1px solid #eadba9;
+  border-left: 3px solid #d2a94d;
+  border-radius: 8px;
+  background: #fff9e9;
+}
+
+.opportunity-content {
+  grid-template-columns: minmax(0, 1.55fr) minmax(260px, 0.9fr);
+}
+
+.impact-flow {
+  grid-template-columns: minmax(120px, 1fr) 24px minmax(130px, 1fr) 24px minmax(120px, 1fr) 24px minmax(110px, 1fr);
+}
+
+@media (max-width: 940px) {
+  .impact-flow {
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .opportunity-content,
+  .impact-flow {
+    grid-template-columns: 1fr;
   }
 }

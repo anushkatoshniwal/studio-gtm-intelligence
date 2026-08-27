@@ -34,8 +34,9 @@ test("renders the five GTM workspace stages in order", () => {
 
 test("keeps source evidence and detail disclosures available", () => {
   assert.match(pageSource, /\["Product", "Customer", "Market"\]/);
-  assert.match(pageSource, /<strong>View full evidence<\/strong>/);
-  assert.match(pageSource, /<strong>View full economics<\/strong>/);
+  assert.match(pageSource, /<summary>View evidence<\/summary>/);
+  assert.match(pageSource, /<strong>View supporting context<\/strong>/);
+  assert.match(pageSource, /<strong>View financial assumptions<\/strong>/);
   assert.match(pageSource, /See detailed reasoning &amp; assumptions/);
   assert.match(pageSource, /Recommended GTM motion/);
   assert.match(pageSource, /sourceEvidenceForDisplay\(context\.supportingEvidence\)/);
@@ -44,9 +45,34 @@ test("keeps source evidence and detail disclosures available", () => {
   assert.match(pageSource, /className="source-detail"/);
   assert.match(pageSource, /context\.primaryMetric \|\| "Primary metric not specified"/);
   assert.match(pageSource, /Imported from GTM Intelligence Agent/);
-  assert.match(pageSource, /className="key-unknowns"/);
+  assert.match(pageSource, /<details className="key-unknowns">/);
+  assert.match(pageSource, /key \{unknowns.length === 1 \? "unknown" : "unknowns"\}/);
   assert.match(pageSource, /Uncertainties for the operator to consider when setting assumptions\./);
-  assert.match(pageSource, /<p className="context-label">Experiment hypothesis<\/p>/);
+  assert.match(pageSource, /Hypothesis · IF \/ FOR \/ THEN \/ BECAUSE/);
+  assert.match(pageSource, /"View full hypothesis"/);
+});
+
+test("uses progressive disclosure for rationale and financial detail", () => {
+  assert.match(pageSource, /<strong>View rationale<\/strong>/);
+  assert.match(pageSource, /className="rationale-disclosure"/);
+  assert.match(pageSource, /Based on current working assumptions/);
+  assert.match(pageSource, /id="test-assumptions-title">Test assumptions/);
+  assert.match(pageSource, /id="confidence-title">Confidence/);
+  assert.match(pageSource, /id="rationale-title">Rationale/);
+});
+
+test("keeps Impact focused on the four decision-critical outputs", () => {
+  for (const label of [
+    "Incremental customers",
+    "Incremental revenue",
+    "Incremental cost",
+    "Incremental ROI",
+  ]) {
+    assert.match(pageSource, new RegExp(`label="${label}"`));
+  }
+  const impactStart = pageSource.indexOf('<div className="impact-flow"');
+  const impactEnd = pageSource.indexOf('</div>', impactStart);
+  assert.doesNotMatch(pageSource.slice(impactStart, impactEnd), /label="Pilot accounts"/);
 });
 
 test("uses concise Experiment terminology", () => {
